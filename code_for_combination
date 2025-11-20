@@ -1,0 +1,73 @@
+`timescale 1ns / 1ps
+
+module Top_DES_System(
+    input wire clk,
+    input wire reset,
+    input wire start_btn,
+    output wire done_led
+    );
+
+    // Interconnects
+    wire [5:0] addr_a, addr_b;
+    wire [63:0] din_a, dout_b;
+    wire we_a, en_b;
+    
+    wire des_start, des_done;
+    wire [63:0] plain, cipher, key;
+
+    // 1. Instantiate Controller
+    BRAM_Controller controller_inst (
+        .clk(clk),
+        .reset(reset),
+        .start(start_btn),
+        .done_all(done_led),
+        
+        .bram_addr_a(addr_a),
+        .bram_din_a(din_a),
+        .bram_we_a(we_a),
+        
+        .bram_addr_b(addr_b),
+        .bram_en_b(en_b),
+        .bram_dout_b(dout_b),
+        
+        .des_start(des_start),
+        .des_plain(plain),
+        .des_key(key),
+        .des_cipher(cipher),
+        .des_done(des_done)
+    );
+
+    // 2. Instantiate DES Core
+    DES_Core des_inst (
+        .clk(clk),
+        .reset(reset),
+        .start_i(des_start),
+        .plaintext_i(plain),
+        .key_i(key),
+        .ciphertext_o(cipher),
+        .done_o(des_done)
+    );
+
+    // 3. Instantiate BRAM IP
+    // GO TO IP CATALOG -> Block Memory Generator
+    // Interface Type: Native
+    // Memory Type: Simple Dual Port RAM
+    // Port A Width: 64, Depth: 64 (Write Port)
+    // Port B Width: 64 (Read Port)
+    // Uncheck "Primitives Output Register" for Port B to minimize latency for this test.
+    // Name it: blk_mem_gen_0
+    
+    blk_mem_gen_0 bram_inst (
+        .clka(clk),
+        .ena(1'b1), // Always enabled for port A logic
+        .wea(we_a),
+        .addra(addr_a),
+        .dina(din_a),
+        
+        .clkb(clk),
+        .enb(en_b),
+        .addrb(addr_b),
+        .doutb(dout_b)
+    );
+
+endmodule
