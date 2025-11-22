@@ -1,0 +1,31 @@
+You cannot copy-paste the BRAM code; you must generate it using the Block Design tool or IP Catalog so Vivado creates the netlist.
+
+Open IP Catalog.
+
+Search for "Block Memory Generator" and double-click it.
+
+Basic Tab:
+
+Interface Type: Native
+
+Memory Type: Simple Dual Port RAM
+
+Port A Options:
+
+Port A Width: 64
+
+Port A Depth: 64
+
+Enable Port Type: Always Enabled
+
+Port B Options:
+
+Port B Width: 64
+
+(Uncheck "Primitives Output Register" to reduce latency for this specific code).
+
+Summary:
+
+Component Name: blk_mem_gen_0 (Must match your Top Module code).
+
+Click OK -> Generate.
