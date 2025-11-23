@@ -1,0 +1,117 @@
+
+`timescale 1ns / 1ps
+
+module BRAM_Controller_Pipelined #(
+    parameter DATA_DEPTH = 64,  // Total words to process
+    parameter PIPELINE_DEPTH = 16,
+    parameter BRAM_LATENCY = 1
+)(
+    input wire clk,
+    input wire reset,
+    input wire start,
+    output reg done_all,
+
+    // BRAM Port A (Write)
+    output reg [5:0] bram_addr_a,
+    output wire [63:0] bram_din_a, // Wired directly from DES
+    output reg bram_we_a,
+
+    // BRAM Port B (Read)
+    output reg [5:0] bram_addr_b,
+    output reg bram_en_b,
+    
+    // DES Interface
+    input wire [63:0] des_cipher_in
+);
+
+    localparam TOTAL_LATENCY = PIPELINE_DEPTH + BRAM_LATENCY;
+    
+    // States
+    localparam S_IDLE = 0;
+    localparam S_RUN  = 1;
+    localparam S_DONE = 2;
+    
+    reg [1:0] state;
+    
+    // Counters
+    reg [6:0] read_ptr;
+    reg [6:0] write_ptr;
+    
+    // Shift register to track valid data moving through the pipeline
+    // When a '1' enters LSB, we are reading. When '1' exits MSB, we write.
+    reg [TOTAL_LATENCY-1:0] valid_pipeline;
+
+    assign bram_din_a = des_cipher_in;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            state <= S_IDLE;
+            read_ptr <= 0;
+            write_ptr <= 0;
+            bram_addr_a <= 0;
+            bram_addr_b <= 0;
+            bram_we_a <= 0;
+            bram_en_b <= 0;
+            done_all <= 0;
+            valid_pipeline <= 0;
+        end else begin
+            case (state)
+                S_IDLE: begin
+                    done_all <= 0;
+                    read_ptr <= 0;
+                    write_ptr <= 0;
+                    valid_pipeline <= 0;
+                    bram_we_a <= 0;
+                    
+                    if (start) begin
+                        state <= S_RUN;
+                        bram_en_b <= 1;
+                    end
+                end
+
+                S_RUN: begin
+                    // --------------------------------------
+                    // READ LOGIC (Feeds the Pipeline)
+                    // --------------------------------------
+                    if (read_ptr < DATA_DEPTH) begin
+                        bram_addr_b <= read_ptr[5:0];
+                        bram_en_b <= 1;
+                        valid_pipeline <= {valid_pipeline[TOTAL_LATENCY-2:0], 1'b1}; // Shift in 1
+                        read_ptr <= read_ptr + 1;
+                    end else begin
+                        bram_en_b <= 0;
+                        valid_pipeline <= {valid_pipeline[TOTAL_LATENCY-2:0], 1'b0}; // Shift in 0
+                    end
+
+                    // --------------------------------------
+                    // WRITE LOGIC (Drains the Pipeline)
+                    // --------------------------------------
+                    // The MSB of the shift register indicates data has fully traversed 
+                    // BRAM Read Latency + DES Pipeline
+                    if (valid_pipeline[TOTAL_LATENCY-1]) begin
+                        bram_we_a <= 1;
+                        bram_addr_a <= write_ptr[5:0];
+                        write_ptr <= write_ptr + 1;
+                    end else begin
+                        bram_we_a <= 0;
+                    end
+
+                    // --------------------------------------
+                    // EXIT CONDITION
+                    // --------------------------------------
+                    if (write_ptr == DATA_DEPTH) begin
+                        state <= S_DONE;
+                        done_all <= 1;
+                    end
+                end
+
+                S_DONE: begin
+                    bram_we_a <= 0;
+                    bram_en_b <= 0;
+                    // Remain in done state until reset
+                end
+            endcase
+        end
+    end
+
+endmodule
