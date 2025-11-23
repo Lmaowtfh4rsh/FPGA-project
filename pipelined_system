@@ -1,0 +1,74 @@
+`timescale 1ns / 1ps
+
+module Top_DES_Pipelined(
+    input wire clk,
+    input wire reset,
+    input wire start_btn,
+    output wire done_led
+    );
+
+    // Interconnects
+    wire [5:0] addr_a, addr_b;
+    wire [63:0] din_a;      // From DES to BRAM
+    wire [63:0] dout_b;     // From BRAM to DES
+    wire we_a, en_b;
+    
+    // DES Hardcoded Key for this demo
+    wire [63:0] des_key = 64'h0123456789ABCDEF; 
+    wire [63:0] des_cipher_out;
+
+    // 1. Instantiate Pipelined Controller
+    BRAM_Controller_Pipelined #(
+        .DATA_DEPTH(64),
+        .PIPELINE_DEPTH(16),
+        .BRAM_LATENCY(1) // Block Memory Generator standard read latency
+    ) controller_inst (
+        .clk(clk),
+        .reset(reset),
+        .start(start_btn),
+        .done_all(done_led),
+        
+        .bram_addr_a(addr_a),
+        .bram_din_a(din_a),
+        .bram_we_a(we_a),
+        
+        .bram_addr_b(addr_b),
+        .bram_en_b(en_b),
+        
+        .des_cipher_in(des_cipher_out)
+    );
+
+    // 2. Instantiate Pipelined DES Core
+    // Note: No "start" or "done" signals for the core itself. 
+    // It runs continuously, managed by the flow of valid data from the controller.
+    DES_Core_Pipelined des_pipe_inst (
+        .clk(clk),
+        .reset(reset),
+        .plaintext_i(dout_b),
+        .key_i(des_key),
+        .ciphertext_o(des_cipher_out)
+    );
+
+    // 3. Instantiate BRAM IP
+    // For simulation, we use a behavioral model if IP is not present.
+    // In Vivado, this would be your Block Memory Generator instance.
+    
+    // Simple Dual Port RAM Model for Simulation convenience
+    reg [63:0] ram [0:63];
+    reg [63:0] ram_out_reg;
+
+    // Port A: Write Only
+    always @(posedge clk) begin
+        if (we_a)
+            ram[addr_a] <= din_a;
+    end
+
+    // Port B: Read Only
+    always @(posedge clk) begin
+        if (en_b)
+            ram_out_reg <= ram[addr_b];
+    end
+    
+    assign dout_b = ram_out_reg;
+
+endmodule
