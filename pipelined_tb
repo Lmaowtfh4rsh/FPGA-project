@@ -1,0 +1,68 @@
+`timescale 1ns / 1ps
+
+module tb_Top_DES_Pipelined;
+
+    // Inputs
+    reg clk;
+    reg reset;
+    reg start_btn;
+
+    // Outputs
+    wire done_led;
+
+    // Instantiate the Unit Under Test (UUT)
+    Top_DES_Pipelined uut (
+        .clk(clk), 
+        .reset(reset), 
+        .start_btn(start_btn), 
+        .done_led(done_led)
+    );
+
+    // Clock Generation
+    always #5 clk = ~clk; // 100MHz clock
+
+    integer i;
+
+    initial begin
+        // Initialize Inputs
+        clk = 0;
+        reset = 1;
+        start_btn = 0;
+
+        // Initialize BRAM content (Backdoor load for simulation)
+        // Accessing the internal memory array of the UUT
+        for (i = 0; i < 64; i = i + 1) begin
+            uut.ram[i] = i * 64'h1010101010101010; // Dummy pattern
+        end
+
+        // Wait 100 ns for global reset to finish
+        #100;
+        reset = 0;
+        
+        // Start the pipeline
+        #20;
+        start_btn = 1;
+        #10;
+        start_btn = 0;
+
+        // Wait for completion
+        wait(done_led == 1);
+        
+        #50;
+        
+        // Check Results
+        $display("------------------------------------------------");
+        $display("Simulation Done. Checking Memory Dump...");
+        for (i = 0; i < 5; i = i + 1) begin
+            // We just print the first 5 results to verify writes happened
+            $display("Addr %0d: Input=%h | Output=%h", 
+                i, 
+                i * 64'h1010101010101010, 
+                uut.ram[i]);
+        end
+        $display("------------------------------------------------");
+
+        $finish;
+    end
+      
+endmodule
