@@ -1,0 +1,134 @@
+`timescale 1ns / 1ps
+
+module DES_Core_Pipelined(
+    input wire clk,
+    input wire reset, // Sync reset
+    input wire [63:0] plaintext_i,
+    input wire [63:0] key_i,
+    output wire [63:0] ciphertext_o
+    );
+
+    // =========================================================================
+    // Pipeline Registers
+    // =========================================================================
+    // We need 16 stages.
+    // L and R are 32 bits each.
+    reg [31:0] L [0:16];
+    reg [31:0] R [0:16];
+    reg [55:0] K [0:16]; // Key pipeline
+
+    wire [31:0] next_L [0:15];
+    wire [31:0] next_R [0:15];
+    wire [55:0] next_K [0:15];
+    wire [47:0] subkey [0:15];
+
+    // =========================================================================
+    // Initial Permutation (IP)
+    // =========================================================================
+    wire [63:0] ip_out;
+    // Note: In real DES, this is a bit shuffle. 
+    // Simplified for readability/simulation: straight assignment or logic
+    // Implementing actual IP logic:
+    function [63:0] func_ip;
+        input [63:0] d;
+        integer i;
+        begin
+            // Standard DES IP Table logic would go here. 
+            // For this implementation, we map simply to focus on pipeline structure
+            // or use a simplified identity for testing if S-boxes aren't standard.
+            // Below is a placeholder for the bit shuffling to ensure compilability.
+            func_ip = {d[0], d[50], d[20], d[63:4]}; // Just a shuffle example
+            // *Replace with full IP table for standard compliance*
+            func_ip = d; // PASSTHROUGH for architectural verification
+        end
+    endfunction
+    
+    assign ip_out = func_ip(plaintext_i);
+
+    // Initial Key Permutation (PC1) - Simplified Passthrough for demo
+    wire [55:0] key_pc1;
+    assign key_pc1 = key_i[55:0]; 
+
+    // =========================================================================
+    // Pipeline Generation
+    // =========================================================================
+    genvar i;
+    generate
+        for (i = 0; i < 16; i = i + 1) begin : STAGE
+            
+            // 1. Key Schedule Logic (Rotate and PC2)
+            // --------------------------------------
+            // Determine shift amount (1 or 2) based on round
+            wire [55:0] rotated_key;
+            wire [47:0] round_subkey;
+            
+            // Simplified Key Schedule for Pipelining:
+            // In a real implementation, you apply specific left shifts here.
+            assign rotated_key = {K[i][54:0], K[i][55]}; // Simple rotate
+            assign round_subkey = rotated_key[47:0];     // Simple PC2 selection
+
+            // 2. Feistel Function (f)
+            // --------------------------------------
+            wire [31:0] f_out;
+            wire [47:0] e_expanded;
+            wire [47:0] xor_out;
+            
+            // E-Expansion (32 -> 48) - Simplified
+            assign e_expanded = {R[i][0], R[i], R[i][31], R[i][14:0]}; 
+            
+            assign xor_out = e_expanded ^ round_subkey;
+
+            // S-Box Substitution (48 -> 32)
+            // We use a simplified reduction for code compactness
+            assign f_out = {xor_out[47:16] ^ xor_out[15:0]}; 
+
+            // 3. Next Stage Logic
+            // --------------------------------------
+            assign next_L[i] = R[i];
+            assign next_R[i] = L[i] ^ f_out;
+            assign next_K[i] = rotated_key;
+        end
+    endgenerate
+
+    // =========================================================================
+    // Synchronous Pipeline Logic
+    // =========================================================================
+    integer j;
+    always @(posedge clk) begin
+        if (reset) begin
+            for (j = 0; j <= 16; j = j + 1) begin
+                L[j] <= 0;
+                R[j] <= 0;
+                K[j] <= 0;
+            end
+        end else begin
+            // Input Stage (Cycle 0)
+            L[0] <= ip_out[63:32];
+            R[0] <= ip_out[31:0];
+            K[0] <= key_pc1;
+
+            // Pipeline Stages (Cycles 1-16)
+            for (j = 0; j < 16; j = j + 1) begin
+                L[j+1] <= next_L[j];
+                R[j+1] <= next_R[j];
+                K[j+1] <= next_K[j];
+            end
+        end
+    end
+
+    // =========================================================================
+    // Final Permutation (FP)
+    // =========================================================================
+    wire [63:0] pre_fp;
+    assign pre_fp = {R[16], L[16]}; // Note: 32-bit swap happens before FP
+    
+    function [63:0] func_fp;
+        input [63:0] d;
+        begin
+            func_fp = d; // Passthrough for architectural verification
+        end
+    endfunction
+
+    assign ciphertext_o = func_fp(pre_fp);
+
+endmodule
