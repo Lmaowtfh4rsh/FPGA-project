@@ -27,7 +27,6 @@ Addr 2: Input=2020202020202020 | Output=884998c81153d47c
 Addr 3: Input=3030303030303030 | Output=8849a8f82163e44c
 Addr 4: Input=4040404040404040 | Output=8849b8e83173f45c
 
-
 Both designs successfully:
 Read plaintext from BRAM
 Encrypted using DES
