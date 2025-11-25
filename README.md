@@ -13,18 +13,18 @@ Write ciphertext back into BRAM
 
 2. Functional Verification
 
-Non-Pipelined Simulation Output
-Addr 0 : Input = 123456789abcdef0 | Output = 069d0bf0000000e3
-Addr 1 : Input = 069d0bf0000000e3 | Output = 069d0bf000000000
-Addr 2 : Input = 069d0bf000000000 | Output = 069d0bf000000000
-Addr 3 : Input = 069d0bf000000000 | Output = 069d0bf000000000
+Non-Pipelined Simulation Output  
+Addr 0 : Input = 123456789abcdef0 | Output = 069d0bf0000000e3  
+Addr 1 : Input = 069d0bf0000000e3 | Output = 069d0bf000000000  
+Addr 2 : Input = 069d0bf000000000 | Output = 069d0bf000000000  
+Addr 3 : Input = 069d0bf000000000 | Output = 069d0bf000000000  
 Addr 4 : Input = 069d0bf000000000 | Output = 069d0bf000000000
 
-Pipelined Simulation Output
-Addr 0: Input=0000000000000000 | Output=884988d80143c46c
-Addr 1: Input=1010101010101010 | Output=884988d80143c46c
-Addr 2: Input=2020202020202020 | Output=884998c81153d47c
-Addr 3: Input=3030303030303030 | Output=8849a8f82163e44c
+Pipelined Simulation Output  
+Addr 0: Input=0000000000000000 | Output=884988d80143c46c  
+Addr 1: Input=1010101010101010 | Output=884988d80143c46c  
+Addr 2: Input=2020202020202020 | Output=884998c81153d47c  
+Addr 3: Input=3030303030303030 | Output=8849a8f82163e44c  
 Addr 4: Input=4040404040404040 | Output=8849b8e83173f45c
 
 Both designs successfully:
